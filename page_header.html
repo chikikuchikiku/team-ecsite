@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+<title>Time of bliss</title>
+</head>
+<body>
+
+<th:block th:fragment="pageHeader">
+	<script src="http://code.jquery.com/jquery-3.4.1.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+	<link rel="stylesheet"
+			href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+	<script src="/js/util/stringUtil.js" th:src="@{/js/util/stringUtil.js}"></script>
+	<script src="/js/util/validator.js" th:src="@{/js/util/validator.js}"></script>
+	<script src="/js/dialogConfig.js" th:src="@{/js/dialogConfig.js}"></script>
+	<script th:inline="javascript">
+	/*<![CDATA[*/
+		$(() => {
+			//id="loginErrorのdialog"にdialogConfigのloginError文を適用
+			$('#loginError').dialog(dialogConfig.loginError);	
+			
+			$('button#login').on('click', () => {　
+				//ログインボタンクリック時に入力されたuserNameとpasswordをjsonStringに代入
+				let jsonString = {
+						'userName' : $('div.loginArea input[name=userName]').val(),
+						'password' : $('div.loginArea input[name=password]').val()
+				};
+				//AuthControllerのloginメソッドにアクセス
+				$.ajax({
+					type: 'POST',
+					url: '/lion/auth/login',
+					data: JSON.stringify(jsonString),
+					contentType: 'application/json',
+					datatype: 'json',
+					scriptCharset: 'utf-8'
+				})
+				//loginメソッドの実行結果(result)をuserに代入
+				.then((result) => {
+					let user = JSON.parse(result);
+					//userName,passwordが登録されてない場合の処理
+					if(isEmpty(user)) {							
+						$('#hiddenUserName').val('');			
+						$('#loginError').dialog('open');			//ログインエラーダイアログの表示
+					//userName,passwordが登録されている場合の処理
+					} else {
+						$('#hiddenUserName').val(user['userName']);	
+						login(user);								//login(user)関数の呼び出し
+					}
+				}, () => {
+					alert('Error: ajax connection failed.');
+				});
+			});
+			
+			//ログインボタンクリック時の処理を記載
+			$('button#logout').on('click', () => {
+				//AuthControllerのlogoutメソッドにアクセス
+				$.ajax({
+					type: 'POST',
+					url: '/lion/auth/logout',
+					datatype: 'json',
+					scriptCharset: 'utf-8'
+				})
+				//logoutメソッドを実行後の処理
+				.then((result) => {
+					$('#hiddenUserName').val('');
+					logout();						//logout関数の呼び出し
+					alert('ログアウトしました。');		
+					location.replace('/lion/');		//トップページへ遷移
+				}, () => {
+					alert('Error: ajax connection failed.');
+				});
+			});
+		});
+		
+		//login(user)関数の定義
+		function login(user) {
+			let userName = user['userName'];					
+			$('.welcomeMsg').text(`ようこそ！ ${userName} さん`);	
+			if (isEmpty($('button#login').prop('class'))) {			
+				$('button#login').addClass('hidden');				//button#loginのclassにhiddenを追加(ログインボタン非表示)
+				$('button#logout').removeClass('hidden');			//button#logoutのclassにhiddenを削除(ログアウトボタン表示)
+			}
+
+			$('#mypageMenu').removeClass('hidden');					//#mypageMenuのclassにhiddenを削除(マイページボタン表示)
+			
+			$('div.loginArea input[name=userName]').val('');		//usereName入力欄を空欄に変更
+			$('div.loginArea input[name=password]').val('');		//password入力欄を空欄に変更
+		}
+		
+		//logout()関数の定義
+		function logout() {
+			$('.welcomeMsg').text(`ようこそ！ ゲスト さん`);
+			//button#loginのclassが空の場合の処理()
+			if (isEmpty($('button#logout').prop('class'))) {
+				$('button#logout').addClass('hidden');			//button#logoutのclassにhiddenを追加(ログアウトボタン削除)
+				$('button#login').removeClass('hidden');		//button#loginのclassにhiddenを削除(ログインボタン表示)
+			}
+			//mypageMenuのclassが空の場合の処理
+			if (isEmpty($('#mypageMenu').prop('class'))) {
+				$('#mypageMenu').addClass('hidden');			//#mypageMenuのclassのhiddenを追加(マイページボタン削除)
+			}
+			
+			$('div.loginArea input[name=userName]').val('');	//usereName入力欄を空欄に変更
+			$('div.loginArea input[name=password]').val('');	//password入力欄を空欄に変更
+		}
+	/*]]>*/
+	</script>
+	
+	<div class="headerTop">
+		<h1 class="logo"><a href="/lion/">Time of bliss</a></h1>
+		<span class="signup">
+			<a href="/lion/user/" th:href="@{/lion/user/}">
+			新規ユーザ登録はこちら
+			</a>
+		</span>
+		<span class="welcomeMsg" 
+			 th:text="'ようこそ！ ' + ${loginSession == null || loginSession.getUserName() == null ? 'ゲスト さん' : loginSession.getUserName() + ' さん'}">
+		</span>
+	</div>
+	 
+	<nav>
+		<!-- ログイン関連の画面表示 -->
+		<div class="loginArea">
+			<input type="text" name="userName" />
+			<input type="password" name="password" />
+			<input type="hidden" id="hiddenUserName" value="" />
+			<button id="login" th:class="${loginSession == null || loginSession.getUserName() == null ? '' : 'hidden'}">ログイン</button>
+			<button id="logout" th:class="${loginSession == null || loginSession.getUserName() == null ? 'hidden' : ''}">ログアウト</button>
+		</div>
+		<!-- カート・マイページボタンの画面表示 -->
+		<ul class="menu">
+			<li id="cartMenu"><a href="/lion/cart/">カート</a></li>
+			<li id="mypageMenu"
+					th:class="${loginSession == null || loginSession.getUserName() == null ? 'hidden' : ''}">
+				<a href="/lion/mypage/">マイページ</a>
+			</li>
+		</ul>
+	</nav>
+		<!-- Modal Dialog (ログインエラー) -->
+	<div th:insert="fragments/dialog_login_error::dialogLoginError"></div>
+</th:block>
+
+
+</body>
+</html>
